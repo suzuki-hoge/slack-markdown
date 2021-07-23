@@ -14,7 +14,7 @@ _emphasis_ text
 [anchor](https://github.com/suzuki-hoge) link
 ```
 
-input `ctrl + Enter` before submit. will be converted.
+input `cmd + Space` before submit. will be converted.
 
 ![スクリーンショット 2021-07-24 1 01 27](https://user-images.githubusercontent.com/18749992/126809845-484c31f1-5015-4684-b703-2364c6bfd787.png)
 
