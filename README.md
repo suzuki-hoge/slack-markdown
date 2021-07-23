@@ -66,3 +66,6 @@ summary for classes.
 
 ![classes](./classes.png)
 
+### test
+run [test.ts](./src/test.ts)
+

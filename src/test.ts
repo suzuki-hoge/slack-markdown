@@ -1,4 +1,4 @@
-import {apply} from './main'
+import {apply} from './converter'
 
 const editing = `
 
