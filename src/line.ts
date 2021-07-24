@@ -1,5 +1,8 @@
+import {Match} from './match'
+import {MatchFor} from './match-for'
+
 export class Line {
-    private texts: Text[] = []
+    private readonly texts: Text[] = []
     private continuous: Text | null = null
 
     constructor(markdown: string) {
@@ -11,83 +14,82 @@ export class Line {
     }
 
     private pushChar(char: string): Line {
-        if (this.continuous == null) {
-            if (Strong.isApplicable(char)) {
-                this.continuous = new Strong(char)
-            } else if (Emphasis.isApplicable(char)) {
-                this.continuous = new Emphasis(char)
-            } else if (Strikethrough.isApplicable(char)) {
-                this.continuous = new Strikethrough(char)
-            } else if (Code.isApplicable(char)) {
-                this.continuous = new Code(char)
-            } else if (Anchor.isApplicable(char)) {
-                this.continuous = new Anchor(char)
-            } else {
-                this.continuous = new Plain(char)
-            }
-        } else if (this.continuous instanceof Plain) {
-            if (Strong.isApplicable(char)) {
-                this.texts.push(this.continuous)
-                this.continuous = new Strong(char)
-            } else if (Emphasis.isApplicable(char)) {
-                this.texts.push(this.continuous)
-                this.continuous = new Emphasis(char)
-            } else if (Strikethrough.isApplicable(char)) {
-                this.texts.push(this.continuous)
-                this.continuous = new Strikethrough(char)
-            } else if (Code.isApplicable(char)) {
-                this.texts.push(this.continuous)
-                this.continuous = new Code(char)
-            } else if (Anchor.isApplicable(char)) {
-                this.texts.push(this.continuous)
-                this.continuous = new Anchor(char)
-            } else {
-                this.continuous.pushChar(char)
-            }
-        } else if (this.continuous instanceof Strong) {
-            if (Strong.isApplicable(char)) {
-                this.continuous.pushChar(char)
-                this.texts.push(this.continuous)
-                this.continuous = null
-            } else {
-                this.continuous.pushChar(char)
-            }
-        } else if (this.continuous instanceof Emphasis) {
-            if (Emphasis.isApplicable(char)) {
-                this.continuous.pushChar(char)
-                this.texts.push(this.continuous)
-                this.continuous = null
-            } else {
-                this.continuous.pushChar(char)
-            }
-        } else if (this.continuous instanceof Strikethrough) {
-            if (Strikethrough.isApplicable(char)) {
-                this.continuous.pushChar(char)
-                this.texts.push(this.continuous)
-                this.continuous = null
-            } else {
-                this.continuous.pushChar(char)
-            }
-        } else if (this.continuous instanceof Code) {
-            if (Code.isApplicable(char)) {
-                this.continuous.pushChar(char)
-                this.texts.push(this.continuous)
-                this.continuous = null
-            } else {
-                this.continuous.pushChar(char)
-            }
-        } else if (this.continuous instanceof Anchor) {
-            if (Anchor.isClosable(char)) {
-                this.continuous.pushChar(char)
-                this.texts.push(this.continuous)
-                this.continuous = null
-            } else {
-                this.continuous.pushChar(char)
-            }
-        } else {
-            this.continuous.pushChar(char)
-        }
+        // @formatter:off
+        new MatchFor(this.continuous, char)
+            .case(
+                c => c == null, () => new Match(char)
+                    .case(Strong.isApplicable,        this.start(Strong))
+                    .case(Emphasis.isApplicable,      this.start(Emphasis))
+                    .case(Strikethrough.isApplicable, this.start(Strikethrough))
+                    .case(Code.isApplicable,          this.start(Code))
+                    .case(Anchor.isApplicable,        this.start(Anchor))
+                    .otherwise(                       this.start(Plain))
+            )
+            .case(
+                c => c instanceof Plain, () => new Match(char)
+                    .case(Strong.isApplicable,        this.switch(Strong))
+                    .case(Emphasis.isApplicable,      this.switch(Emphasis))
+                    .case(Strikethrough.isApplicable, this.switch(Strikethrough))
+                    .case(Code.isApplicable,          this.switch(Code))
+                    .case(Anchor.isApplicable,        this.switch(Anchor))
+                    .otherwise(                       this.continue())
+            )
+            .case(
+                c => c instanceof Strong, () => new Match(char)
+                    .case(Strong.isApplicable,        this.end())
+                    .otherwise(                       this.continue())
+            )
+            .case(
+                c => c instanceof Emphasis, () => new Match(char)
+                    .case(Emphasis.isApplicable,      this.end())
+                    .otherwise(                       this.continue())
+            )
+            .case(
+                c => c instanceof Strikethrough, () => new Match(char)
+                    .case(Strikethrough.isApplicable, this.end())
+                    .otherwise(                       this.continue())
+            )
+            .case(
+                c => c instanceof Code, () => new Match(char)
+                    .case(Code.isApplicable,          this.end())
+                    .otherwise(                       this.continue())
+            )
+            .case(
+                c => c instanceof Anchor, () => new Match(char)
+                    .case(Anchor.isClosable,          this.end())
+                    .otherwise(                       this.continue())
+            )
+            .otherwise(this.continue())
+        // @formatter:on
+
         return this
+    }
+
+    private start(constructor: new(char: string) => Text): (char: string) => void {
+        return char => this.continuous = new constructor(char)
+    }
+
+    private continue(): (char: string) => void {
+        return char => this.continuous?.pushChar(char)
+    }
+
+    private end(): (char: string) => void {
+        return char => {
+            if (this.continuous != null) {
+                this.continuous.pushChar(char)
+                this.texts.push(this.continuous)
+                this.continuous = null
+            }
+        }
+    }
+
+    private switch(constructor: new(char: string) => Text): (char: string) => void {
+        return char => {
+            if (this.continuous != null) {
+                this.texts.push(this.continuous)
+                this.continuous = new constructor(char)
+            }
+        }
     }
 
     private finish() {

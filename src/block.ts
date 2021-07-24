@@ -1,72 +1,90 @@
 import {Line} from './line'
+import {Match} from "./match";
+import {MatchFor} from "./match-for";
 
 export class Blocks {
-    private blocks: Block[] = []
+    private readonly blocks: Block[] = []
     private continuous: MultiLineBlock | null = null
 
     pushMarkdown(markdown: string): Blocks {
-        if (this.continuous == null) {
-            if (OrderedList.isApplicable(markdown)) {
-                this.continuous = new OrderedList(markdown)
-            } else if (UnorderedList.isApplicable(markdown)) {
-                this.continuous = new UnorderedList(markdown)
-            } else if (CodeBlock.isApplicable(markdown)) {
-                this.continuous = new CodeBlock(markdown)
-            } else if (Quote.isApplicable(markdown)) {
-                this.blocks.push(new Quote(markdown))
-            } else {
-                this.blocks.push(new Paragraph(markdown))
-            }
-        } else if (this.continuous instanceof OrderedList) {
-            if (OrderedList.isApplicable(markdown)) {
-                this.continuous.pushMarkdown(markdown)
-            } else if (UnorderedList.isApplicable(markdown)) {
-                this.blocks.push(this.continuous)
-                this.continuous = new UnorderedList(markdown)
-            } else if (CodeBlock.isApplicable(markdown)) {
-                this.blocks.push(this.continuous)
-                this.continuous = new CodeBlock(markdown)
-            } else if (Quote.isApplicable(markdown)) {
-                this.blocks.push(this.continuous)
-                this.continuous = null
-                this.blocks.push(new Quote(markdown))
-            } else {
-                this.blocks.push(this.continuous)
-                this.continuous = null
-                this.blocks.push(new Paragraph(markdown))
-            }
-        } else if (this.continuous instanceof UnorderedList) {
-            if (OrderedList.isApplicable(markdown)) {
-                this.blocks.push(this.continuous)
-                this.continuous = new OrderedList(markdown)
-            } else if (UnorderedList.isApplicable(markdown)) {
-                this.continuous.pushMarkdown(markdown)
-            } else if (CodeBlock.isApplicable(markdown)) {
-                this.blocks.push(this.continuous)
-                this.continuous = new CodeBlock(markdown)
-            } else if (Quote.isApplicable(markdown)) {
-                this.blocks.push(this.continuous)
-                this.continuous = null
-                this.blocks.push(new Quote(markdown))
-            } else {
-                this.blocks.push(this.continuous)
-                this.continuous = null
-                this.blocks.push(new Paragraph(markdown))
-            }
-        } else if (this.continuous instanceof CodeBlock) {
-            if (CodeBlock.isApplicable(markdown)) {
-                this.continuous.pushMarkdown(markdown)
-                this.blocks.push(this.continuous)
-                this.continuous = null
-            } else {
-                this.continuous.pushMarkdown(markdown)
-            }
-        }
+        // @formatter:off
+        new MatchFor(this.continuous, markdown)
+            .case(
+                c => c == null, () => new Match(markdown)
+                    .case(OrderedList.isApplicable,   this.start(OrderedList))
+                    .case(UnorderedList.isApplicable, this.start(UnorderedList))
+                    .case(CodeBlock.isApplicable,     this.start(CodeBlock))
+                    .case(Quote.isApplicable,         this.fix(Quote))
+                    .otherwise(                       this.fix(Paragraph))
+            )
+            .case(
+                c => c instanceof OrderedList, () => new Match(markdown)
+                    .case(OrderedList.isApplicable,   this.continue())
+                    .case(UnorderedList.isApplicable, this.switchStart(UnorderedList))
+                    .case(CodeBlock.isApplicable,     this.switchStart(CodeBlock))
+                    .case(Quote.isApplicable,         this.switchFix(Quote))
+                    .otherwise(                       this.switchFix(Paragraph))
+            )
+            .case(
+                c => c instanceof UnorderedList, () => new Match(markdown)
+                    .case(OrderedList.isApplicable,   this.switchStart(OrderedList))
+                    .case(UnorderedList.isApplicable, this.continue())
+                    .case(CodeBlock.isApplicable,     this.switchStart(CodeBlock))
+                    .case(Quote.isApplicable,         this.switchFix(Quote))
+                    .otherwise(                       this.switchFix(Paragraph))
+            )
+            .case(
+                c => c instanceof CodeBlock, () => new Match(markdown)
+                    .case(CodeBlock.isApplicable,     this.end())
+                    .otherwise(                       this.continue())
+            )
+        // @formatter:on
 
         return this
     }
 
-    finish():Blocks {
+    private start(constructor: new(markdown: string) => MultiLineBlock): (markdown: string) => void {
+        return markdown => this.continuous = new constructor(markdown)
+    }
+
+    private fix(constructor: new(markdown: string) => SingleLineBlock): (markdown: string) => void {
+        return markdown => this.blocks.push(new constructor(markdown))
+    }
+
+    private continue(): (markdown: string) => void {
+        return markdown => this.continuous?.pushMarkdown(markdown)
+    }
+
+    private end(): (markdown: string) => void {
+        return markdown => {
+            if (this.continuous != null) {
+                this.continuous.pushMarkdown(markdown)
+                this.blocks.push(this.continuous)
+                this.continuous = null
+            }
+        }
+    }
+
+    private switchStart(constructor: new(markdown: string) => MultiLineBlock): (markdown: string) => void {
+        return markdown => {
+            if (this.continuous != null) {
+                this.blocks.push(this.continuous)
+                this.continuous = new constructor(markdown)
+            }
+        }
+    }
+
+    private switchFix(constructor: new(char: string) => SingleLineBlock): (char: string) => void {
+        return markdown => {
+            if (this.continuous != null) {
+                this.blocks.push(this.continuous)
+                this.continuous = null
+                this.blocks.push(new constructor(markdown))
+            }
+        }
+    }
+
+    finish(): Blocks {
         if (this.continuous != null) {
             this.blocks.push(this.continuous)
             this.continuous = null
@@ -89,7 +107,7 @@ abstract class Block {
 }
 
 abstract class SingleLineBlock extends Block {
-    protected markdown: string
+    protected readonly markdown: string
 
     constructor(markdown: string) {
         super()
@@ -98,7 +116,7 @@ abstract class SingleLineBlock extends Block {
 }
 
 abstract class MultiLineBlock extends Block {
-    protected markdowns: string[]
+    protected readonly markdowns: string[]
 
     constructor(markdown: string) {
         super()
@@ -120,7 +138,7 @@ class Paragraph extends SingleLineBlock {
 }
 
 class Quote extends SingleLineBlock {
-    private static prefix: string = '&gt; '
+    private static readonly prefix: string = '&gt; '
 
     static isApplicable(line: string): boolean {
         return line.startsWith(Quote.prefix)
@@ -135,7 +153,7 @@ class Quote extends SingleLineBlock {
 }
 
 class OrderedList extends MultiLineBlock {
-    private static prefix: RegExp = /^\s*\d\.\s*/
+    private static readonly prefix: RegExp = /^\s*\d\.\s*/
 
     static isApplicable(line: string): boolean {
         return line.match(OrderedList.prefix) != null
@@ -158,7 +176,7 @@ class OrderedList extends MultiLineBlock {
 }
 
 class UnorderedList extends MultiLineBlock {
-    private static prefix: RegExp = /^\s*([+\-])\s*/
+    private static readonly prefix: RegExp = /^\s*([+\-])\s*/
 
     static isApplicable(line: string): boolean {
         return line.match(UnorderedList.prefix) != null
