@@ -1,59 +1,38 @@
 @startuml
 
+package accumulator {
+  object function {
+    apply: string => string
+  }
 
-package block {
-    class Blocks {
-        + pushMarkdown(string): self
-        + toHtml(): string
-    }
+  class Accumulator {
+    + push(string): Accumulator
+    + markdowns(): [Markdown]
+  }
 
-    abstract class Block {
-        + toHtml(): string
-    }
-
-    Blocks -r-> "*" Block
-
-    abstract class SingleLineBlock {
-    }
-
-    abstract class MultiLineBlock {
-        + pushLine(string): self
-    }
-
-    SingleLineBlock -u-|> Block
-    MultiLineBlock -u-|> Block
-
-    Paragraph -u-|> SingleLineBlock
-    Quote -u-|> SingleLineBlock
-
-    OrderedList -u-|> MultiLineBlock
-    UnorderedList -u-|> MultiLineBlock
-    CodeBlock -u-|> MultiLineBlock
+  function -r-> Accumulator
 }
 
-package line {
-    class Line {
-        + pushChar(char): Line
+package markdown {
+    abstract class Markdown {
         + toHtml(): string
     }
 
-    interface Text {
-        + pushChar(char)
-        + toHtml(): string
-    }
-
-    Line -r-> "*" Text
-
-    Prime -u-|> Text
-    Strong -u-|> Text
-    Emphasis -u-|> Text
-    Strikethrough -u-|> Text
-    Code -u-|> Text
-    Anchor -u-|> Text
-    Break -u-|> Text
-    Mention -u-|> Text
+    UnorderedList -u-|> Markdown
+    OrderedList -u-|> Markdown
+    CodeBlock -u-|> Markdown
+    Prime -u-|> Markdown
 }
 
-block -d-> "*" Line
+Accumulator -d-> markdown
+
+object main {
+  onload
+}
+object test {
+  cases
+}
+main -u-> function
+test -u-> function
 
 @enduml

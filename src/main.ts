@@ -1,4 +1,4 @@
-import {apply} from './converter'
+import {apply} from './accumulator'
 
 document.onkeydown = event => {
     if (event.code == 'Space' && event.metaKey) {
