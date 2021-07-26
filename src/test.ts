@@ -2,6 +2,8 @@ import {apply} from './converter'
 
 const editing = `
 
+<ts-mention bla bla bla>@hoge</ts-mention>
+
 &gt; ほげぇ
 &gt; \`hoge\` を 42 にする
 
@@ -24,6 +26,8 @@ console.log(n)
 `.split('\n').map(s => `<p>${s}</p>`).join('')
 
 const exp = `
+<p><ts-mention bla bla bla>@hoge</ts-mention></p>
+<p><br></p>
 <blockquote>ほげぇ</blockquote>
 <blockquote><code>hoge</code> を 42 にする</blockquote>
 <p><br></p>

@@ -8,6 +8,8 @@ export class Line {
     constructor(markdown: string) {
         if (Break.isApplicable(markdown)) {
             this.texts.push(new Break(markdown))
+        } else if (Mention.isApplicable(markdown)) {
+            this.texts.push(new Mention(markdown))
         } else {
             markdown.split('').reduce((acc: Line, char: string) => acc.pushChar(char), this).finish()
         }
@@ -187,5 +189,15 @@ class Break extends Text {
 
     toHtml(): string {
         return '<br>'
+    }
+}
+
+class Mention extends Text {
+    static isApplicable(char: string): boolean {
+        return char.startsWith('<ts-mention')
+    }
+
+    toHtml(): string {
+        return this.chars
     }
 }

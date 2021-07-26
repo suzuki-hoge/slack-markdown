@@ -51,6 +51,7 @@ package line {
     Code -u-|> Text
     Anchor -u-|> Text
     Break -u-|> Text
+    Mention -u-|> Text
 }
 
 block -d-> "*" Line

@@ -1,7 +1,7 @@
 import {Blocks} from './block'
 
 export function apply(editing: string): string {
-    return editing
+    return editing.trim()
         .replace(/<p>/g, '')
         .replace(/<\/p>/g, '\n')
         .trim().split('\n')
